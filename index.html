@@ -82,7 +82,7 @@ button:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
     <dt>Style</dt><dd>Rustic lodge: dark wood, stone, iron</dd>
     <dt>Rough cost</dt><dd>About $66k to $141k in materials (DIY)</dd>
   </dl>
-  <p class="note">This is a planning sketch. Sizes, the stair position, headroom and which rafters or trusses the stair opening crosses need to be checked on site before building.</p>
+  <p class="note">This is a planning sketch. Outside shape, roof lines and windows follow the survey and the owner's photos. Inside walls are placed from listing photos. Stair position, headroom and which rafters the stair opening crosses need to be checked on site before building.</p>
   <p class="hint">Drag to look around. Scroll or pinch to zoom. Right-drag or two-finger drag to pan.</p>
 </details>
 
@@ -226,7 +226,8 @@ const GZN = -12.15, GZS = 14.25;// garage north / south faces (26.4 deep)
 const KNEE = 12.5, LPITCH = 1.0, LOG_D = 0.85, LR = LOG_D/2, MAIN_TOP = 9.4;
 const logRoofY = z => KNEE + (LZ - Math.abs(z)) * LPITCH;
 const CTOP = 17;                 // middle section two-story wall height
-const GTOP = 8.8, GPITCH = 8/12, GFLOOR = -1.2; // garage
+const GFLOOR = -1.2, GTOP = 8.8;                 // garage slab and wall top
+const GPITCH = (KNEE + LZ*LPITCH - GTOP)/13.2;    // garage roof meets the same ridge as the log house
 
 // ---------- log walls ----------
 function cutByOpening(segs, o, y){
@@ -403,7 +404,7 @@ function gableRoof(o){
 // =====================================================================
 const gTop = (a,b) => logRoofY(a) - 1.0; // helper for gable window tops
 const OPEN_LOG = {
-  n: [{a:-25.5,b:-22,lo:3,hi:7,kind:'window'},{a:-19,b:-15.5,lo:3,hi:7,kind:'window'},
+  n: [{a:-20.5,b:-16.5,lo:3,hi:7,kind:'window'},
       {a:-12,b:-10,lo:4.5,hi:6.8,kind:'window'},{a:-6.5,b:-2.5,lo:3,hi:7.2,kind:'window',mull:true}],
   s: [{a:-25.8,b:-23,lo:3.8,hi:6.8,kind:'window'},{a:-12.5,b:-8.5,lo:3,hi:7,kind:'window'},
       {a:-6,b:-2.5,lo:3,hi:7,kind:'window'}],
@@ -426,15 +427,23 @@ OPEN_LOG.e.forEach(o => {
   if (o.poly) polyWindowX(0, [[o.a,o.lo],[o.b,o.lo],[o.b,o.topB],[o.a,o.topA]], G.gableLogs);
   else addOpening('z', 0, o, logOpenGroup(o));
 });
-gableRoof({axis:'x', c1:-14, c2:0, half:LZ, len:28, top:KNEE, pitch:LPITCH, over:2, end0:0.3, end1:2, group:G.roof});
+const logRoof = gableRoof({axis:'x', c1:-14, c2:0, half:LZ, len:28, top:KNEE, pitch:LPITCH, over:2, end0:0.3, end1:2, group:G.roof});
+(function(){ // solar panels on the south slope
+  const panelMat = mat('#1b2a44',{roughness:0.3, metalness:0.45}), rim = mat('#c9ced3',{roughness:0.4, metalness:0.6});
+  const p = logRoof.planes[0];
+  [[-11.5,-3.2],[-8,-3.2],[-4.5,-3.2],[-1,-3.2],[2.5,-3.2],[6,-3.2],[-11.5,2.4],[-8,2.4],[-4.5,2.4]].forEach(([x,z]) => {
+    const r = new THREE.Mesh(new THREE.BoxGeometry(3.3,0.12,5.4), rim); r.position.set(x,0.32,z); p.add(r);
+    const q = new THREE.Mesh(new THREE.BoxGeometry(3.1,0.14,5.2), panelMat); q.position.set(x,0.37,z); p.add(q);
+  });
+})();
 
 // =====================================================================
 // MIDDLE SECTION (14 x 20.3, two stories, cross gable)
 // =====================================================================
-const OPEN_MID_N = [{a:-33.5,b:-30.5,lo:0,hi:7,kind:'door',mat:doorWood},{a:-39,b:-36,lo:3,hi:7,kind:'window'},
-                    {a:-37,b:-33,lo:12,hi:15.5,kind:'window'}];
-const OPEN_MID_S = [{a:-39.5,b:-35.5,lo:3,hi:7,kind:'window'},
-                    {a:-36,b:-34,lo:12.8,hi:15.2,kind:'window'}];
+const OPEN_MID_N = [{a:-36.5,b:-33.5,lo:0,hi:7,kind:'door',mat:doorWood},{a:-40.4,b:-38.2,lo:3,hi:7,kind:'window'},{a:-31.8,b:-29.6,lo:3,hi:7,kind:'window'},
+                    {a:-37,b:-33,lo:12.8,hi:16,kind:'window'}];
+const OPEN_MID_S = [{a:-33.5,b:-30,lo:3.5,hi:7,kind:'window'},
+                    {a:-39.8,b:-37.2,lo:12.8,hi:15.8,kind:'window'},{a:-32.8,b:-30.2,lo:12.8,hi:15.8,kind:'window'}];
 const OPEN_MID_W = [{a:-9,b:-6,lo:0,hi:7,kind:'pass'},{a:-3,b:-0.6,lo:9.5,hi:13,kind:'pass'}];
 [[ -CZ, OPEN_MID_N],[ CZ, OPEN_MID_S]].forEach(([z, ops]) => {
   frameWall('x', z, -42, -28, 0, 9.5, ops, G.connLower);
@@ -447,10 +456,15 @@ frameWall('z', -42, -CZ, CZ, GFLOOR, 9.5, OPEN_MID_W_NEW, G.newMain);
 addOpening('z', -42, {a:-2.9,b:-0.5,lo:0,hi:6.8,kind:'pass',depth:0.8}, G.newMain);
 frameWall('z', -42, -CZ, CZ, 9.5, CTOP, OPEN_MID_W, G.connUpper);
 OPEN_MID_W.forEach(o => addOpening('z', -42, Object.assign({depth:0.8}, o), o.lo < MAIN_TOP ? G.connLower : G.connUpper));
-// the main ridge carries straight through; the two-story walls make it read as a dormer on each side
-const RIDGE = KNEE + LZ*LPITCH;
-gableTri('z', -42, -CZ - 0.3, CZ + 0.3, CTOP, RIDGE + 0.2, G.connGable);
-gableRoof({axis:'x', c1:-35, c2:0, half:CZ, len:14, top:CTOP, pitch:(RIDGE - CTOP)/CZ, over:1.5, end0:0.6, end1:0.4, group:G.roof});
+// the two-story box rises through the main roof and carries its own low gable just above the main ridge
+const RIDGE = KNEE + LZ*LPITCH, MIDRIDGE = RIDGE + 1.6;
+gableTri('z', -42, -CZ - 0.3, CZ + 0.3, CTOP, MIDRIDGE + 0.2, G.connGable);
+gableTri('z', -28, -CZ - 0.3, CZ + 0.3, CTOP, MIDRIDGE + 0.2, G.connGable);
+gableRoof({axis:'x', c1:-35, c2:0, half:CZ, len:14, top:CTOP, pitch:(MIDRIDGE - CTOP)/CZ, over:1.2, end0:0.8, end1:0.8, group:G.roof});
+// short metal eave across the front and back of the middle section at the main-floor ceiling line
+[-1,1].forEach(s => { const e = box(15.5, 0.25, 2.6, roofMat, -35, 10.4, s*(CZ + 1.1), G.roof); e.rotation.x = s*0.42; });
+
+// 
 
 // =====================================================================
 // GARAGE (west end, 28.4 x 26.4, attached)
@@ -458,7 +472,7 @@ gableRoof({axis:'x', c1:-35, c2:0, half:CZ, len:14, top:CTOP, pitch:(RIDGE - CTO
 const GH = GFLOOR;
 const OPEN_GAR_N = [{a:-67.2,b:-58.2,lo:GH,hi:GH+8,kind:'gdoor'},{a:-54.2,b:-45.2,lo:GH,hi:GH+8,kind:'gdoor'}];
 const OPEN_GAR_S = [{a:-58,b:-55,lo:GH+3.6,hi:GH+6.6,kind:'window'}];
-const OPEN_GAR_W = [{a:6,b:9,lo:GH+3.2,hi:GH+6.2,kind:'window'}];
+const OPEN_GAR_W = [{a:-0.5,b:2.6,lo:GH+3.6,hi:GH+6.4,kind:'window'}];
 frameWall('x', GZN, -70.4, -42, GH, GTOP, OPEN_GAR_N, G.curGar);
 frameWall('x', GZS, -70.4, -42, GH, GTOP, OPEN_GAR_S, G.curGar);
 frameWall('z', -70.4, GZN, GZS, GH, GTOP, OPEN_GAR_W, G.garWalls);
@@ -474,15 +488,15 @@ frameWall('x', GZS, -70.4, -42, GH, GTOP, NEW_GAR_S, G.newGar);
 NEW_GAR_N.forEach(o => addOpening('x', GZN, Object.assign({depth:0.8}, o), G.newGar));
 NEW_GAR_S.forEach(o => addOpening('x', GZS, Object.assign({depth:0.8}, o), G.newGar));
 OPEN_GAR_W.forEach(o => addOpening('z', -70.4, Object.assign({depth:0.8}, o), G.garWalls));
-gableTri('z', -70.4, GZN - 0.3, GZS + 0.3, GTOP, GTOP + 13.5*GPITCH, G.garGable);
+gableTri('z', -70.4, GZN - 0.3, GZS + 0.3, GTOP, GTOP + 13.2*GPITCH, G.garGable);
+box(0.3, 0.25, 10, trimMat, -70.75, GTOP + 7.4, 1.05, G.garGable); box(0.3, 0.25, 10, trimMat, -70.75, GTOP + 5.2, 1.05, G.garGable);   // boards across the old gable opening
 box(0.25, 6.6, 2.8, doorWhite, -70.75, GTOP + 0.5 + 3.3, 1.05, G.garGable);          // door out of the room over the garage
 box(0.35, 0.3, 3.4, trimMat, -70.8, GTOP + 7.2, 1.05, G.garGable);
 [-1,1].forEach(s => box(0.35, 6.6, 0.3, trimMat, -70.8, GTOP + 3.8, 1.05 + s*1.55, G.garGable));
-[-1,1].forEach(s => box(0.3, 2.2, 0.5, blackMat, -70.75, GTOP + 4.2, 1.05 + s*1.6, G.garGable)); // gable vents
-gableRoof({axis:'x', c1:-56.2, c2:1.05, half:13.2, len:28.4, top:GTOP, pitch:GPITCH, over:1.5, end0:1.5, end1:0, group:G.roof});
+gableRoof({axis:'x', c1:-56.2, c2:1.05, half:13.2, len:28.4, top:GTOP, pitch:GPITCH, over:1.5, end0:1.8, end1:0, group:G.roof});
 // small front gable over the garage doors
 (function(){
-  const xc = -56.2, half = 11.5, rise = 5.75, ridge = GTOP + rise;
+  const xc = -56.2, half = 11.5, rise = 7.5, ridge = GTOP + rise;
   const zFront = GZN - 1.5, zBack = GZN + rise/GPITCH, zl = zBack - zFront, zc = (zFront + zBack)/2;
   const L = Math.hypot(half, rise) + 0.9, ang = Math.atan2(rise, half);
   [-1,1].forEach(s => {
@@ -493,7 +507,7 @@ gableRoof({axis:'x', c1:-56.2, c2:1.05, half:13.2, len:28.4, top:GTOP, pitch:GPI
   });
   box(1.2, 0.45, zl, ribMat, xc, ridge + 0.55, zc, G.roof);
   gableTri('x', GZN, xc - half, xc + half, GTOP, ridge, G.garGable);
-  [-3.5, 3.5].forEach(dx => box(0.6, 0.6, 0.3, mat('#ffe9b0',{emissive:'#ffd27a', emissiveIntensity:0.4}), xc + dx, GTOP + 1.8, GZN - 0.45, G.garGable));
+  [-3.5, 3.5].forEach(dx => box(0.6, 0.6, 0.3, mat('#ffe9b0',{emissive:'#ffd27a', emissiveIntensity:0.4}), xc + dx, GTOP + 2.0, GZN - 0.45, G.garGable));
 })();
 
 // =====================================================================
@@ -545,10 +559,6 @@ floorBox(0.45, 12.65, -LZ, LZ, 0, 0.3, deckTex, 6, G.curMain);
 [1,6.6,12.3].forEach(x => [-11.8,-4,4,11.8].forEach(z => box(0.5, HY, 0.5, cedar, x, -HY/2, z, G.curMain)));
 rail(0.45,-LZ,1.4,-LZ,0,G.curMain); rail(5.1,-LZ,12.65,-LZ,0,G.curMain); rail(12.65,-LZ,12.65,LZ,0,G.curMain); rail(0.45,LZ,12.65,LZ,0,G.curMain);
 for (let k=1;k<=3;k++) box(3.6, 0.3, 1, cedar, 3.25, -k*0.3 - 0.15, -LZ - k + 0.5, G.curMain);
-// south deck in the recess beside the middle section
-floorBox(-41.8, -28.4, CZ, GZS, 0, 0.3, deckTex, 6, G.base);
-rail(-41.8,GZS,-36.5,GZS,0,G.base); rail(-33,GZS,-28.4,GZS,0,G.base);
-for (let k=1;k<=3;k++) box(3.5, 0.3, 1, cedar, -34.75, -k*0.3 - 0.15, GZS + k - 0.5, G.base);
 // covered front landing
 floorBox(-41.8, -28.4, -LZ, -CZ, 0, 0.3, deckTex, 6, G.base);
 for (let k=1;k<=3;k++) box(3.6, 0.3, 1, cedar, -32, -k*0.3 - 0.15, -LZ - k + 0.5, G.base);
@@ -618,8 +628,8 @@ partition('x', -5, -52, -42.3, GTOP+0.5, 4.2, U);
 partition('x', 5, -52, -42.3, GTOP+0.5, 4.2, U);
 partition('z', -52, -5, 5, GTOP+0.5, 4.4, U, [[-1.4,1.4,4]]);
 box(0.15, 4, 2.8, doorWhite, -52.2, GTOP+2.5, 0, U);
-partition('x', -8, -69.5, -52, GTOP+0.5, 2.6, G.curUpper, null, mat('#c9b48a'));
-partition('x', 8, -69.5, -52, GTOP+0.5, 2.6, G.curUpper, null, mat('#c9b48a'));
+partition('x', -8, -69.5, -52, GTOP+0.5, 5.4, G.curUpper, null, mat('#c9b48a'));
+partition('x', 8, -69.5, -52, GTOP+0.5, 5.4, G.curUpper, null, mat('#c9b48a'));
 // loft guard rail overlooking the living room
 rail(-14, -11.7, -14, 5.5, 9.5, G.curUpper, pine); rail(-14, 8.7, -14, 11.7, 9.5, G.curUpper, pine);
 
@@ -726,8 +736,8 @@ partition('x', 1.5, -70, -66.2, 0, 8.8, NM);
 // 5 ft loft walkway along the west wall, with a rail over the kitchen
 rail(-22.6, -11.7, -22.6, 11.7, 9.5, NU, darkWood);
 // finished room over the garage: drywall knee walls, rail around the stair opening
-partition('x', -8, -69.5, -52, GTOP+0.5, 2.6, NU);
-partition('x', 8, -69.5, -52, GTOP+0.5, 2.6, NU);
+partition('x', -8, -69.5, -52, GTOP+0.5, 5.4, NU);
+partition('x', 8, -69.5, -52, GTOP+0.5, 5.4, NU);
 rail(-66.5, 1.5, -66.5, 8, GTOP+0.5, NU, darkWood);           // guard along the stair opening
 // remodeled upstairs bath: large stone/tile walk-in shower with two wall heads and a rain head
 box(6,0.3,3.9,fieldStone,-39,9.65,8.15,NU);                                   // shower floor
@@ -786,10 +796,10 @@ const conex = box(8, 8.5, 20, mat('#6b6650',{roughness:0.8}), 6, 4.25, -50, site
   d.position.set(x, 3.6, z - 0.2); d.rotation.x = -2.0; site.add(d);
 });
 const tankMat = mat('#a4483f',{roughness:0.6});
-const tank = cyl(1.5, 5, tankMat, -24, 3.2 + 0, 14.5, site, 20); tank.rotation.z = Math.PI/2;
-[[-25.8,13.6],[-25.8,15.4],[-22.2,13.6],[-22.2,15.4]].forEach(([x,z]) => box(0.15, 2.2, 0.15, tankMat, x, 1.1, z, site));
+const tank = cyl(1.5, 5, tankMat, -48, 3.2, 16.3, site, 20); tank.rotation.z = Math.PI/2;
+[[-49.8,15.4],[-49.8,17.2],[-46.2,15.4],[-46.2,17.2]].forEach(([x,z]) => box(0.15, 2.2, 0.15, tankMat, x, 1.1, z, site));
+[-53.5,-51.3].forEach(x => box(1.4, 2.0, 0.6, mat('#9aa0a3'), x, HY + 4.6, GZS + 0.35, site));   // electrical boxes
 box(4, 2.5, 3, mat('#7a5a3a'), -46.5, 1.25, 16.8, site); box(4.2, 0.3, 3.2, mat('#3f6b4a'), -46.5, 2.65, 16.8, site);
-box(1.4, 2.2, 0.6, mat('#9aa0a3'), -19, HY + 4.2, 12.8, site);      // generator transfer switch on the log wall
 
 // approximate lot lines (Lot 6, 445 x 200 ft)
 (function(){
@@ -943,7 +953,7 @@ const labelDefs = [
   {t:'Log house', p:[-14,H+27,0], v:'out'},
   {t:'Two-story middle section', p:[-35,H+24,0], v:'out'},
   {t:'Deck', p:[6.5,H+5,0], v:'out', s:'cur'},
-  {t:'Fuel tank', p:[-24,6.5,14.5], v:'out'},
+  {t:'Fuel tank', p:[-48,6.5,16.3], v:'out'},
   {t:'Conex', p:[6,11,-50], v:'out'},
   {t:'Well', p:[-40,3.5,-48], v:'out'},
   {t:'Septic risers', p:[22,3.5,25], v:'out'},

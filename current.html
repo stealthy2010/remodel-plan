@@ -66,23 +66,25 @@ button:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
 
 <details class="panel" id="info" open>
   <summary>
-    <div><h1>13295 S Old Knik Harbor Dr</h1><div class="where">Lot 6, Old Knik Harbor, Wasilla, Alaska</div></div>
+    <div><h1>13295 S Old Knik Harbor Dr</h1><div class="where">Wasilla, Alaska, as it is today</div></div>
     <span class="chev" aria-hidden="true"></span>
   </summary>
-  <p class="lede">A 2004 log home with a two-story middle section and an attached garage, set back from the bluff above Knik Arm.</p>
+  <p class="lede">A 2004 log home with a two-story middle section and an attached garage, above Knik Arm.</p>
   <dl>
     <dt>Main floor</dt><dd>952 sq ft: living, dining, kitchen, bedroom, bath</dd>
     <dt>Upper floor</dt><dd>670 sq ft: loft, bedroom, bath, laundry, walk-in closet</dd>
-    <dt>Garage</dt><dd>2-car, 28 &times; 26 ft, with 288 sq ft storage above</dd>
-    <dt>Footprint</dt><dd>About 70 ft long: log house 28 &times; 24, middle 14 &times; 20, garage 28 &times; 26</dd>
-    <dt>Heat</dt><dd>Oil boiler and monitor heater, wood stove</dd>
-    <dt>Site</dt><dd>2.05 acres, well, 1,000-gal septic, 8 &times; 20 conex</dd>
+    <dt>Garage</dt><dd>2-car, 28 &times; 26 ft, unfinished storage above</dd>
+    <dt>Site</dt><dd>2.05 acres, well, septic, 48 &times; 54 shop</dd>
   </dl>
-  <p class="note">Outside dimensions come from the January 2025 as-built survey, and floor areas from the December 2024 appraisal sketch. Room positions, windows and roof heights are placed to match the appraisal and listing photos, so expect some differences in the exact sizes.</p>
+  <p class="note">Outside dimensions come from the January 2025 survey and the owner's photos. Inside walls are placed from listing photos, so expect small differences.</p>
   <p class="hint">Drag to look around. Scroll or pinch to zoom. Right-drag or two-finger drag to pan.</p>
 </details>
 
 <div class="bar">
+  <div class="seg" role="group" aria-label="Current or remodel" style="display:none">
+    <button data-plan="cur" aria-pressed="true">Current</button>
+    <button data-plan="new" aria-pressed="false">Remodel</button>
+  </div>
   <div class="seg" role="group" aria-label="Choose a view">
     <button data-view="front" aria-pressed="true">Front</button>
     <button data-view="inlet" aria-pressed="false">Inlet side</button>
@@ -99,11 +101,12 @@ button:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
 (function(){
 if (window.matchMedia('(max-width: 640px)').matches) document.getElementById('info').removeAttribute('open');
 const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+const LOW = window.matchMedia('(max-width: 820px), (pointer: coarse)').matches; // phones and tablets get a lighter setup
 
 // ---------- renderer / scene ----------
 const container = document.getElementById('scene');
 const renderer = new THREE.WebGLRenderer({antialias:true});
-renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, LOW ? 1.5 : 2));
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
@@ -128,7 +131,7 @@ scene.add(hemi);
 const sun = new THREE.DirectionalLight('#fff4e0', 0.95);
 sun.position.set(160, 170, 120);
 sun.castShadow = true;
-sun.shadow.mapSize.set(2048, 2048);
+sun.shadow.mapSize.set(LOW ? 1024 : 2048, LOW ? 1024 : 2048);
 Object.assign(sun.shadow.camera, {left:-100, right:100, top:100, bottom:-100, near:1, far:600});
 sun.shadow.bias = -0.0004;
 sun.target.position.set(-30, 0, 0);
@@ -205,6 +208,7 @@ const cedar = mat('#c98a52');
 const house = new THREE.Group(); house.position.y = HY; scene.add(house);
 const G = {};
 ['mainLogs','upperLogs','gableLogs','roof','connLower','connUpper','connGable','garWalls','garGable','mainInt','upperInt','base'].forEach(k => { G[k] = new THREE.Group(); house.add(G[k]); });
+[['curMain','mainInt'],['newMain','mainInt'],['curUpper','upperInt'],['newUpper','upperInt'],['curGar','garWalls'],['newGar','garWalls']].forEach(([k,parent]) => { G[k] = new THREE.Group(); G[parent].add(G[k]); });
 const site = new THREE.Group(); scene.add(site);
 const glassMeshes = [];
 
@@ -216,7 +220,8 @@ const GZN = -12.15, GZS = 14.25;// garage north / south faces (26.4 deep)
 const KNEE = 12.5, LPITCH = 1.0, LOG_D = 0.85, LR = LOG_D/2, MAIN_TOP = 9.4;
 const logRoofY = z => KNEE + (LZ - Math.abs(z)) * LPITCH;
 const CTOP = 17;                 // middle section two-story wall height
-const GTOP = 8.8, GPITCH = 8/12, GFLOOR = -1.2; // garage
+const GFLOOR = -1.2, GTOP = 8.8;                 // garage slab and wall top
+const GPITCH = (KNEE + LZ*LPITCH - GTOP)/13.2;    // garage roof meets the same ridge as the log house
 
 // ---------- log walls ----------
 function cutByOpening(segs, o, y){
@@ -240,7 +245,7 @@ function logRun(axis, fixed, from, to, y, group, openings){
   (openings||[]).forEach(o => { segs = cutByOpening(segs, o, y); });
   segs.forEach(([s,e]) => {
     const len = e - s; if (len < 0.35) return;
-    const m = new THREE.Mesh(new THREE.CylinderGeometry(LR, LR, len, 12), logMats[Math.floor(Math.random()*logMats.length)]);
+    const m = new THREE.Mesh(new THREE.CylinderGeometry(LR, LR, len, 10), logMats[Math.floor(Math.random()*logMats.length)]);
     if (axis === 'x'){ m.rotation.z = Math.PI/2; m.position.set((s+e)/2, y, fixed); }
     else { m.rotation.x = Math.PI/2; m.position.set(fixed, y, (s+e)/2); }
     group.add(m);
@@ -393,7 +398,7 @@ function gableRoof(o){
 // =====================================================================
 const gTop = (a,b) => logRoofY(a) - 1.0; // helper for gable window tops
 const OPEN_LOG = {
-  n: [{a:-25.5,b:-22,lo:3,hi:7,kind:'window'},{a:-19,b:-15.5,lo:3,hi:7,kind:'window'},
+  n: [{a:-20.5,b:-16.5,lo:3,hi:7,kind:'window'},
       {a:-12,b:-10,lo:4.5,hi:6.8,kind:'window'},{a:-6.5,b:-2.5,lo:3,hi:7.2,kind:'window',mull:true}],
   s: [{a:-25.8,b:-23,lo:3.8,hi:6.8,kind:'window'},{a:-12.5,b:-8.5,lo:3,hi:7,kind:'window'},
       {a:-6,b:-2.5,lo:3,hi:7,kind:'window'}],
@@ -416,28 +421,44 @@ OPEN_LOG.e.forEach(o => {
   if (o.poly) polyWindowX(0, [[o.a,o.lo],[o.b,o.lo],[o.b,o.topB],[o.a,o.topA]], G.gableLogs);
   else addOpening('z', 0, o, logOpenGroup(o));
 });
-gableRoof({axis:'x', c1:-14, c2:0, half:LZ, len:28, top:KNEE, pitch:LPITCH, over:2, end0:0.3, end1:2, group:G.roof});
+const logRoof = gableRoof({axis:'x', c1:-14, c2:0, half:LZ, len:28, top:KNEE, pitch:LPITCH, over:2, end0:0.3, end1:2, group:G.roof});
+(function(){ // solar panels on the south slope
+  const panelMat = mat('#1b2a44',{roughness:0.3, metalness:0.45}), rim = mat('#c9ced3',{roughness:0.4, metalness:0.6});
+  const p = logRoof.planes[0];
+  [[-11.5,-3.2],[-8,-3.2],[-4.5,-3.2],[-1,-3.2],[2.5,-3.2],[6,-3.2],[-11.5,2.4],[-8,2.4],[-4.5,2.4]].forEach(([x,z]) => {
+    const r = new THREE.Mesh(new THREE.BoxGeometry(3.3,0.12,5.4), rim); r.position.set(x,0.32,z); p.add(r);
+    const q = new THREE.Mesh(new THREE.BoxGeometry(3.1,0.14,5.2), panelMat); q.position.set(x,0.37,z); p.add(q);
+  });
+})();
 
 // =====================================================================
 // MIDDLE SECTION (14 x 20.3, two stories, cross gable)
 // =====================================================================
-const OPEN_MID_N = [{a:-33.5,b:-30.5,lo:0,hi:7,kind:'door',mat:doorWood},{a:-39,b:-36,lo:3,hi:7,kind:'window'},
-                    {a:-37,b:-33,lo:12,hi:15.5,kind:'window'}];
-const OPEN_MID_S = [{a:-39.5,b:-35.5,lo:3,hi:7,kind:'window'},
-                    {a:-36,b:-34,lo:12.8,hi:15.2,kind:'window'}];
+const OPEN_MID_N = [{a:-36.5,b:-33.5,lo:0,hi:7,kind:'door',mat:doorWood},{a:-40.4,b:-38.2,lo:3,hi:7,kind:'window'},{a:-31.8,b:-29.6,lo:3,hi:7,kind:'window'},
+                    {a:-37,b:-33,lo:12.8,hi:16,kind:'window'}];
+const OPEN_MID_S = [{a:-33.5,b:-30,lo:3.5,hi:7,kind:'window'},
+                    {a:-39.8,b:-37.2,lo:12.8,hi:15.8,kind:'window'},{a:-32.8,b:-30.2,lo:12.8,hi:15.8,kind:'window'}];
 const OPEN_MID_W = [{a:-9,b:-6,lo:0,hi:7,kind:'pass'},{a:-3,b:-0.6,lo:9.5,hi:13,kind:'pass'}];
 [[ -CZ, OPEN_MID_N],[ CZ, OPEN_MID_S]].forEach(([z, ops]) => {
   frameWall('x', z, -42, -28, 0, 9.5, ops, G.connLower);
   frameWall('x', z, -42, -28, 9.5, CTOP, ops, G.connUpper);
   ops.forEach(o => addOpening('x', z, Object.assign({depth:0.8}, o), o.lo < MAIN_TOP ? G.connLower : G.connUpper));
 });
-frameWall('z', -42, -CZ, CZ, GFLOOR, 9.5, OPEN_MID_W, G.connLower);
+frameWall('z', -42, -CZ, CZ, GFLOOR, 9.5, OPEN_MID_W, G.curMain);
+const OPEN_MID_W_NEW = OPEN_MID_W.concat([{a:-2.9,b:-0.5,lo:0,hi:6.8,kind:'pass'}]);   // remodel: bedroom door into the new bath
+frameWall('z', -42, -CZ, CZ, GFLOOR, 9.5, OPEN_MID_W_NEW, G.newMain);
+addOpening('z', -42, {a:-2.9,b:-0.5,lo:0,hi:6.8,kind:'pass',depth:0.8}, G.newMain);
 frameWall('z', -42, -CZ, CZ, 9.5, CTOP, OPEN_MID_W, G.connUpper);
 OPEN_MID_W.forEach(o => addOpening('z', -42, Object.assign({depth:0.8}, o), o.lo < MAIN_TOP ? G.connLower : G.connUpper));
-// the main ridge carries straight through; the two-story walls make it read as a dormer on each side
-const RIDGE = KNEE + LZ*LPITCH;
-gableTri('z', -42, -CZ - 0.3, CZ + 0.3, CTOP, RIDGE + 0.2, G.connGable);
-gableRoof({axis:'x', c1:-35, c2:0, half:CZ, len:14, top:CTOP, pitch:(RIDGE - CTOP)/CZ, over:1.5, end0:0.6, end1:0.4, group:G.roof});
+// the two-story box rises through the main roof and carries its own low gable just above the main ridge
+const RIDGE = KNEE + LZ*LPITCH, MIDRIDGE = RIDGE + 1.6;
+gableTri('z', -42, -CZ - 0.3, CZ + 0.3, CTOP, MIDRIDGE + 0.2, G.connGable);
+gableTri('z', -28, -CZ - 0.3, CZ + 0.3, CTOP, MIDRIDGE + 0.2, G.connGable);
+gableRoof({axis:'x', c1:-35, c2:0, half:CZ, len:14, top:CTOP, pitch:(MIDRIDGE - CTOP)/CZ, over:1.2, end0:0.8, end1:0.8, group:G.roof});
+// short metal eave across the front and back of the middle section at the main-floor ceiling line
+[-1,1].forEach(s => { const e = box(15.5, 0.25, 2.6, roofMat, -35, 10.4, s*(CZ + 1.1), G.roof); e.rotation.x = s*0.42; });
+
+// 
 
 // =====================================================================
 // GARAGE (west end, 28.4 x 26.4, attached)
@@ -445,21 +466,31 @@ gableRoof({axis:'x', c1:-35, c2:0, half:CZ, len:14, top:CTOP, pitch:(RIDGE - CTO
 const GH = GFLOOR;
 const OPEN_GAR_N = [{a:-67.2,b:-58.2,lo:GH,hi:GH+8,kind:'gdoor'},{a:-54.2,b:-45.2,lo:GH,hi:GH+8,kind:'gdoor'}];
 const OPEN_GAR_S = [{a:-58,b:-55,lo:GH+3.6,hi:GH+6.6,kind:'window'}];
-const OPEN_GAR_W = [{a:6,b:9,lo:GH+3.2,hi:GH+6.2,kind:'window'}];
-frameWall('x', GZN, -70.4, -42, GH, GTOP, OPEN_GAR_N, G.garWalls);
-frameWall('x', GZS, -70.4, -42, GH, GTOP, OPEN_GAR_S, G.garWalls);
+const OPEN_GAR_W = [{a:-0.5,b:2.6,lo:GH+3.6,hi:GH+6.4,kind:'window'}];
+frameWall('x', GZN, -70.4, -42, GH, GTOP, OPEN_GAR_N, G.curGar);
+frameWall('x', GZS, -70.4, -42, GH, GTOP, OPEN_GAR_S, G.curGar);
 frameWall('z', -70.4, GZN, GZS, GH, GTOP, OPEN_GAR_W, G.garWalls);
 frameWall('z', -42, GZN, -CZ, GH, GTOP, [], G.garWalls);
 frameWall('z', -42, CZ, GZS, GH, GTOP, [], G.garWalls);
-OPEN_GAR_N.forEach(o => addOpening('x', GZN, Object.assign({depth:0.8}, o), G.garWalls));
-OPEN_GAR_S.forEach(o => addOpening('x', GZS, Object.assign({depth:0.8}, o), G.garWalls));
+OPEN_GAR_N.forEach(o => addOpening('x', GZN, Object.assign({depth:0.8}, o), G.curGar));
+OPEN_GAR_S.forEach(o => addOpening('x', GZS, Object.assign({depth:0.8}, o), G.curGar));
+// remodel: garage doors framed in with two windows; bath window on the south wall
+const NEW_GAR_N = [{a:-67.5,b:-61.5,lo:2.8,hi:6.8,kind:'window',mull:true},{a:-58,b:-54,lo:2.8,hi:6.8,kind:'window'},{a:-50.6,b:-47.6,lo:0,hi:6.8,kind:'door',mat:doorWood},{a:-46.4,b:-43.4,lo:2.8,hi:6.8,kind:'window'}];
+const NEW_GAR_S = [{a:-60.5,b:-58,lo:4,hi:6.6,kind:'window'},{a:-53,b:-50.5,lo:4.6,hi:6.6,kind:'window'}];
+frameWall('x', GZN, -70.4, -42, GH, GTOP, NEW_GAR_N, G.newGar);
+frameWall('x', GZS, -70.4, -42, GH, GTOP, NEW_GAR_S, G.newGar);
+NEW_GAR_N.forEach(o => addOpening('x', GZN, Object.assign({depth:0.8}, o), G.newGar));
+NEW_GAR_S.forEach(o => addOpening('x', GZS, Object.assign({depth:0.8}, o), G.newGar));
 OPEN_GAR_W.forEach(o => addOpening('z', -70.4, Object.assign({depth:0.8}, o), G.garWalls));
-gableTri('z', -70.4, GZN - 0.3, GZS + 0.3, GTOP, GTOP + 13.5*GPITCH, G.garGable);
-[-1,1].forEach(s => box(0.3, 2.2, 0.5, blackMat, -70.75, GTOP + 4.2, 1.05 + s*1.6, G.garGable)); // gable vents
-gableRoof({axis:'x', c1:-56.2, c2:1.05, half:13.2, len:28.4, top:GTOP, pitch:GPITCH, over:1.5, end0:1.5, end1:0, group:G.roof});
+gableTri('z', -70.4, GZN - 0.3, GZS + 0.3, GTOP, GTOP + 13.2*GPITCH, G.garGable);
+box(0.3, 0.25, 10, trimMat, -70.75, GTOP + 7.4, 1.05, G.garGable); box(0.3, 0.25, 10, trimMat, -70.75, GTOP + 5.2, 1.05, G.garGable);   // boards across the old gable opening
+box(0.25, 6.6, 2.8, doorWhite, -70.75, GTOP + 0.5 + 3.3, 1.05, G.garGable);          // door out of the room over the garage
+box(0.35, 0.3, 3.4, trimMat, -70.8, GTOP + 7.2, 1.05, G.garGable);
+[-1,1].forEach(s => box(0.35, 6.6, 0.3, trimMat, -70.8, GTOP + 3.8, 1.05 + s*1.55, G.garGable));
+gableRoof({axis:'x', c1:-56.2, c2:1.05, half:13.2, len:28.4, top:GTOP, pitch:GPITCH, over:1.5, end0:1.8, end1:0, group:G.roof});
 // small front gable over the garage doors
 (function(){
-  const xc = -56.2, half = 11.5, rise = 5.75, ridge = GTOP + rise;
+  const xc = -56.2, half = 11.5, rise = 7.5, ridge = GTOP + rise;
   const zFront = GZN - 1.5, zBack = GZN + rise/GPITCH, zl = zBack - zFront, zc = (zFront + zBack)/2;
   const L = Math.hypot(half, rise) + 0.9, ang = Math.atan2(rise, half);
   [-1,1].forEach(s => {
@@ -470,7 +501,7 @@ gableRoof({axis:'x', c1:-56.2, c2:1.05, half:13.2, len:28.4, top:GTOP, pitch:GPI
   });
   box(1.2, 0.45, zl, ribMat, xc, ridge + 0.55, zc, G.roof);
   gableTri('x', GZN, xc - half, xc + half, GTOP, ridge, G.garGable);
-  [-3.5, 3.5].forEach(dx => box(0.6, 0.6, 0.3, mat('#ffe9b0',{emissive:'#ffd27a', emissiveIntensity:0.4}), xc + dx, GTOP + 1.8, GZN - 0.45, G.garGable));
+  [-3.5, 3.5].forEach(dx => box(0.6, 0.6, 0.3, mat('#ffe9b0',{emissive:'#ffd27a', emissiveIntensity:0.4}), xc + dx, GTOP + 2.0, GZN - 0.45, G.garGable));
 })();
 
 // =====================================================================
@@ -481,17 +512,28 @@ box(14, HY, 20.3, foundMat, -35, -HY/2, 0, G.base);
 box(28.4, 0.2, 26.4, concrete, -56.2, GH - 0.08, 1.05, G.base);
 floorBox(-27.6, -0.4, -11.7, 11.7, 0.02, 0.3, woodFloorTex, 6, G.base);
 floorBox(-42, -28, -CZ, -4.5, 0.02, 0.3, woodFloorTex, 6, G.base);
-floorBox(-42, -28, -4.5, CZ, 0.02, 0.3, carpetTex, 4, G.base);
-floorBox(-27.6, -20, -7, 2, 0.04, 0.05, tileTex, 2, G.base);
+floorBox(-42, -28, -4.5, CZ, 0.02, 0.3, carpetTex, 4, G.curMain);
+floorBox(-42, -28, -4.5, CZ, 0.02, 0.3, woodFloorTex, 6, G.newMain);     // remodel: carpet out, wood in
+floorBox(-27.6, -20, -7, 2, 0.04, 0.05, tileTex, 2, G.curMain);
 
 // upper floors
-floorBox(-27.6, -14, -11.7, 11.7, 9.5, 0.5, carpetTex, 4, G.upperInt);
-floorBox(-27.6, -20, -11.7, -5.5, 9.52, 0.05, tileTex, 2, G.upperInt);
-floorBox(-42, -28, -CZ, 3, 9.5, 0.5, carpetTex, 4, G.upperInt);
+floorBox(-27.6, -14, -11.7, 11.7, 9.5, 0.5, carpetTex, 4, G.curUpper);
+floorBox(-27.6, -22.6, -11.7, 11.7, 9.5, 0.5, woodFloorTex, 6, G.newUpper);   // remodel: 5 ft loft strip
+floorBox(-27.6, -20, -11.7, -5.5, 9.52, 0.05, tileTex, 2, G.curUpper);
+floorBox(-42, -28, -CZ, 3, 9.5, 0.5, carpetTex, 4, G.curUpper);
+floorBox(-42, -28, -CZ, 3, 9.5, 0.5, woodFloorTex, 6, G.newUpper);
 floorBox(-42, -28, 3, CZ, 9.5, 0.5, tileTex, 2, G.upperInt);
-box(28.0, 0.5, 26.0, mat('#e9e7e1'), -56.2, GTOP + 0.25, 1.05, G.upperInt);          // garage ceiling / attic floor
-floorBox(-52, -42.3, -5, 5, GTOP + 0.52, 0.04, carpetTex, 4, G.upperInt);           // walk-in closet
-floorBox(-69.5, -52, -8, 8, GTOP + 0.52, 0.04, plankTex('#b89a6a','#8a6d44'), 6, G.upperInt); // storage
+box(28.0, 0.5, 26.0, mat('#e9e7e1'), -56.2, GTOP + 0.25, 1.05, G.curUpper);          // garage ceiling / attic floor
+(function(){ // remodel: same floor with an opening for the new stairs
+  const m = mat('#e9e7e1'), y = GTOP + 0.25;
+  const s = (x0,x1,z0,z1) => box(x1-x0, 0.5, z1-z0, m, (x0+x1)/2, y, (z0+z1)/2, G.newUpper);
+  s(-70.2,-42.2,GZN+0.2,1.5); s(-70.2,-42.2,8.7,GZS-0.2); s(-66.5,-42.2,1.5,8.7);
+})();
+floorBox(-52, -42.3, -5, 5, GTOP + 0.52, 0.04, carpetTex, 4, G.curUpper);
+floorBox(-52, -42.3, -5, 5, GTOP + 0.52, 0.04, woodFloorTex, 6, G.newUpper);           // walk-in closet
+floorBox(-69.5, -52, -8, 8, GTOP + 0.52, 0.04, plankTex('#b89a6a','#8a6d44'), 6, G.curUpper); // storage
+floorBox(-69.5, -52, -8, 1.5, GTOP + 0.52, 0.04, woodFloorTex, 6, G.newUpper);
+floorBox(-66.5, -52, 1.5, 8, GTOP + 0.52, 0.04, woodFloorTex, 6, G.newUpper);
 
 // balusters are instanced per group
 const balusterSets = new Map();
@@ -507,14 +549,10 @@ function rail(x1,z1,x2,z2,y0,group,m){
   for (let i=1;i<nb;i++){ const t = i/nb; balusterSets.get(group).pts.push([x1+(x2-x1)*t, y0+1.78, z1+(z2-z1)*t]); }
 }
 // east deck (12.2 x 24.3) with stairs toward the driveway
-floorBox(0.45, 12.65, -LZ, LZ, 0, 0.3, deckTex, 6, G.base);
-[1,6.6,12.3].forEach(x => [-11.8,-4,4,11.8].forEach(z => box(0.5, HY, 0.5, cedar, x, -HY/2, z, G.base)));
-rail(0.45,-LZ,1.4,-LZ,0,G.base); rail(5.1,-LZ,12.65,-LZ,0,G.base); rail(12.65,-LZ,12.65,LZ,0,G.base); rail(0.45,LZ,12.65,LZ,0,G.base);
-for (let k=1;k<=3;k++) box(3.6, 0.3, 1, cedar, 3.25, -k*0.3 - 0.15, -LZ - k + 0.5, G.base);
-// south deck in the recess beside the middle section
-floorBox(-41.8, -28.4, CZ, GZS, 0, 0.3, deckTex, 6, G.base);
-rail(-41.8,GZS,-36.5,GZS,0,G.base); rail(-33,GZS,-28.4,GZS,0,G.base);
-for (let k=1;k<=3;k++) box(3.5, 0.3, 1, cedar, -34.75, -k*0.3 - 0.15, GZS + k - 0.5, G.base);
+floorBox(0.45, 12.65, -LZ, LZ, 0, 0.3, deckTex, 6, G.curMain);
+[1,6.6,12.3].forEach(x => [-11.8,-4,4,11.8].forEach(z => box(0.5, HY, 0.5, cedar, x, -HY/2, z, G.curMain)));
+rail(0.45,-LZ,1.4,-LZ,0,G.curMain); rail(5.1,-LZ,12.65,-LZ,0,G.curMain); rail(12.65,-LZ,12.65,LZ,0,G.curMain); rail(0.45,LZ,12.65,LZ,0,G.curMain);
+for (let k=1;k<=3;k++) box(3.6, 0.3, 1, cedar, 3.25, -k*0.3 - 0.15, -LZ - k + 0.5, G.curMain);
 // covered front landing
 floorBox(-41.8, -28.4, -LZ, -CZ, 0, 0.3, deckTex, 6, G.base);
 for (let k=1;k<=3;k++) box(3.6, 0.3, 1, cedar, -32, -k*0.3 - 0.15, -LZ - k + 0.5, G.base);
@@ -524,22 +562,22 @@ for (let k=1;k<=3;k++) box(3.6, 0.3, 1, cedar, -32, -k*0.3 - 0.15, -LZ - k + 0.5
 // =====================================================================
 const M = G.mainInt, U = G.upperInt;
 // partitions
-partition('x', -7, -27.6, -20, 0, 9.0, M);                                 // hall / bath (solid)
-partition('x', 2, -27.6, -20, 0, 9.0, M);                                  // bath / kitchen (hallway stays open)
-partition('z', -20, -7, 2, 0, 9.0, M, [[-4.4,-2.2]]);                      // bath door faces the stair wall
-partition('z', -14, 2, 11.7, 0, 9.2, M, [[8.6,11.2]], pine);              // kitchen wall (hallway runs between bath and stairs)
+partition('x', -7, -27.6, -20, 0, 9.0, G.curMain);                                 // hall / bath (solid)
+partition('x', 2, -27.6, -20, 0, 9.0, G.curMain);                                  // bath / kitchen (hallway stays open)
+partition('z', -20, -7, 2, 0, 9.0, G.curMain, [[-4.4,-2.2]]);                      // bath door faces the stair wall
+partition('z', -14, 2, 11.7, 0, 9.2, G.curMain, [[8.6,11.2]], pine);              // kitchen wall (hallway runs between bath and stairs)
 partition('x', -4.5, -42, -28.4, 0, 9.4, M, [[-32.6,-30.2]]);             // hall / bedroom
 
 // stairs: rise from the north toward the south wall along the loft edge
 const STEP_N = 13, STEP_T = 11.5/STEP_N, STEP_R = 9.5/STEP_N;
-for (let i=0;i<STEP_N;i++){ const h = (i+1)*STEP_R; box(3, h, STEP_T, pine, -12.5, h/2, -6 + i*STEP_T + STEP_T/2, M); }
-box(3, 0.5, 3.2, pine, -12.5, 9.25, 7.1, M);
+for (let i=0;i<STEP_N;i++){ const h = (i+1)*STEP_R; box(3, h, STEP_T, pine, -12.5, h/2, -6 + i*STEP_T + STEP_T/2, G.curMain); }
+box(3, 0.5, 3.2, pine, -12.5, 9.25, 7.1, G.curMain);
 (function(){
   const dz = 11.5, dy = 9.5, len = Math.hypot(dz,dy);
-  const r = box(0.22, 0.22, len, pine, -11.05, 3.2 + dy/2, -6 + dz/2, M); r.rotation.x = -Math.atan2(dy, dz);
-  for (let z = -5.6; z < 5.4; z += 0.55){ const top = ((z + 6)/dz)*dy; box(0.12, 3.0, 0.12, pine, -11.05, top + 1.6, z, M); }
+  const r = box(0.22, 0.22, len, pine, -11.05, 3.2 + dy/2, -6 + dz/2, G.curMain); r.rotation.x = -Math.atan2(dy, dz);
+  for (let z = -5.6; z < 5.4; z += 0.55){ const top = ((z + 6)/dz)*dy; box(0.12, 3.0, 0.12, pine, -11.05, top + 1.6, z, G.curMain); }
 })();
-rail(-11, 5.5, -11, 8.7, 9.5, M, pine); rail(-14, 8.7, -11, 8.7, 9.5, M, pine);
+rail(-11, 5.5, -11, 8.7, 9.5, G.curMain, pine); rail(-14, 8.7, -11, 8.7, 9.5, G.curMain, pine);
 
 // living room
 box(2.6,2.2,1.1,whiteFix,-11,1.1,-11.15,M);                        // monitor heater
@@ -552,51 +590,159 @@ cyl(0.55, 0.5, blackMat, -2.1, 18.0, 10.0, G.roof);
 // hall
 
 // kitchen: sink on the west log wall, range and window on the south wall, fridge by the doorway
-box(2.1,3,8.6,oak,-26.55,1.5,7.1,M); box(2.3,0.12,8.8,counterMat,-26.5,3.06,7.1,M); box(1.5,0.06,2.6,steel,-26.4,3.13,6.4,M);
-box(1.2,2.6,2.6,oak,-27,6.6,3.6,M); box(1.2,2.6,2.6,oak,-27,6.6,9.6,M);
-box(8.2,3,2.1,oak,-21.4,1.5,10.65,M); box(8.4,0.12,2.3,counterMat,-21.4,3.06,10.6,M);
-box(2.5,3.05,2.2,steel,-18.6,1.52,10.6,M); box(2.4,0.06,2,blackMat,-18.6,3.12,10.6,M); box(2.5,1.4,1.3,steel,-18.6,5.7,11.0,M);
-box(2.4,2.6,1.2,oak,-21.2,6.6,11.1,M); box(2,2.6,1.2,oak,-16.4,6.6,11.1,M);
-box(2.6,3.05,0.1,steel,-25.3,1.52,9.55,M);                         // dishwasher
-box(3,6,2.6,steel,-21.6,3,3.5,M);                                   // fridge
-box(3,1.6,2.4,oak,-21.6,7.2,3.4,M);
+box(2.1,3,8.6,oak,-26.55,1.5,7.1,G.curMain); box(2.3,0.12,8.8,counterMat,-26.5,3.06,7.1,G.curMain); box(1.5,0.06,2.6,steel,-26.4,3.13,6.4,G.curMain);
+box(1.2,2.6,2.6,oak,-27,6.6,3.6,G.curMain); box(1.2,2.6,2.6,oak,-27,6.6,9.6,G.curMain);
+box(8.2,3,2.1,oak,-21.4,1.5,10.65,G.curMain); box(8.4,0.12,2.3,counterMat,-21.4,3.06,10.6,G.curMain);
+box(2.5,3.05,2.2,steel,-18.6,1.52,10.6,G.curMain); box(2.4,0.06,2,blackMat,-18.6,3.12,10.6,G.curMain); box(2.5,1.4,1.3,steel,-18.6,5.7,11.0,G.curMain);
+box(2.4,2.6,1.2,oak,-21.2,6.6,11.1,G.curMain); box(2,2.6,1.2,oak,-16.4,6.6,11.1,G.curMain);
+box(2.6,3.05,0.1,steel,-25.3,1.52,9.55,G.curMain);                         // dishwasher
+box(3,6,2.6,steel,-21.6,3,3.5,G.curMain);                                   // fridge
+box(3,1.6,2.4,oak,-21.6,7.2,3.4,G.curMain);
 
 // main-floor bath, against the original west log wall (old window above the vanity)
-box(5,1.8,2.5,whiteFix,-24.6,0.9,-5.6,M);
-box(1.9,2.8,3,oak,-26.6,1.4,-1.7,M); box(2.1,0.12,3.2,counterMat,-26.6,2.86,-1.7,M);
-box(1.4,1.3,1.4,whiteFix,-26.8,0.65,0.9,M); box(0.6,1.4,1.6,whiteFix,-27.3,2,0.9,M);
+box(5,1.8,2.5,whiteFix,-24.6,0.9,-5.6,G.curMain);
+box(1.9,2.8,3,oak,-26.6,1.4,-1.7,G.curMain); box(2.1,0.12,3.2,counterMat,-26.6,2.86,-1.7,G.curMain);
+box(1.4,1.3,1.4,whiteFix,-26.8,0.65,0.9,G.curMain); box(0.6,1.4,1.6,whiteFix,-27.3,2,0.9,G.curMain);
 
 
 // garage contents
-box(2.4,2,11,pine,-43.4,GH+1,7.5,M);                               // mechanical bench
-box(2.4,2.6,2.4,blackMat,-43.5,GH+3.3,9.5,M);                       // oil boiler
-cyl(1.0,5.2,mat('#8f9599',{metalness:0.4,roughness:0.4}),-43.6,GH+2.6,5,M); // water heater
-box(1.6,0.6,3.2,concrete,-42.9,GH+0.3,-7.5,M); box(1.0,0.6,3.2,concrete,-42.9,GH+0.9,-7.5,M);
+box(2.4,2,11,pine,-43.4,GH+1,7.5,G.curMain);                               // mechanical bench
+box(2.4,2.6,2.4,blackMat,-43.5,GH+3.3,9.5,G.curMain);                       // oil boiler
+cyl(1.0,5.2,mat('#8f9599',{metalness:0.4,roughness:0.4}),-43.6,GH+2.6,5,G.curMain); // water heater
+box(1.6,0.6,3.2,concrete,-42.9,GH+0.3,-7.5,G.curMain); box(1.0,0.6,3.2,concrete,-42.9,GH+0.9,-7.5,G.curMain);
 
 
 // =====================================================================
 // UPPER FLOOR INTERIOR
 // =====================================================================
-slopedWallX(-20, -11.7, -5.5, 9.5, 17.5, U, drywall, [-7.6,-5.7,6.8]);   // laundry, door faces the loft
-partition('x', -5.5, -27.6, -20, 9.5, 8, U);
+slopedWallX(-20, -11.7, -5.5, 9.5, 17.5, G.curUpper, drywall, [-7.6,-5.7,6.8]);   // laundry, door faces the loft
+partition('x', -5.5, -27.6, -20, 9.5, 8, G.curUpper);
 partition('x', 3, -42, -28.4, 9.5, 8.3, U, [[-37,-34.5,7]]);               // bedroom / bath (arched opening)
 partition('x', -5, -52, -42.3, GTOP+0.5, 4.2, U);
 partition('x', 5, -52, -42.3, GTOP+0.5, 4.2, U);
 partition('z', -52, -5, 5, GTOP+0.5, 4.4, U, [[-1.4,1.4,4]]);
 box(0.15, 4, 2.8, doorWhite, -52.2, GTOP+2.5, 0, U);
-partition('x', -8, -69.5, -52, GTOP+0.5, 2.6, U, null, mat('#c9b48a'));
-partition('x', 8, -69.5, -52, GTOP+0.5, 2.6, U, null, mat('#c9b48a'));
+partition('x', -8, -69.5, -52, GTOP+0.5, 5.4, G.curUpper, null, mat('#c9b48a'));
+partition('x', 8, -69.5, -52, GTOP+0.5, 5.4, G.curUpper, null, mat('#c9b48a'));
 // loft guard rail overlooking the living room
-rail(-14, -11.7, -14, 5.5, 9.5, U, pine); rail(-14, 8.7, -14, 11.7, 9.5, U, pine);
+rail(-14, -11.7, -14, 5.5, 9.5, G.curUpper, pine); rail(-14, 8.7, -14, 11.7, 9.5, G.curUpper, pine);
 
 // laundry: stacked washer/dryer on the west wall facing east, shelving under the slope
-box(2.4,5.4,2.4,whiteFix,-26.3,12.2,-7.0,U);
+box(2.4,5.4,2.4,whiteFix,-26.3,12.2,-7.0,G.curUpper);
 // upstairs bath fixtures (south side, through the arch)
-box(2.6,1.8,5,whiteFix,-40.6,10.4,6.9,U);
-box(1.4,1.3,1.4,whiteFix,-36.5,10.15,9.1,U); box(1.6,1.4,0.6,whiteFix,-36.5,11.5,9.8,U);
-box(6,2.8,1.9,oak,-31.5,10.9,9.1,U); box(6.2,0.12,2.1,counterMat,-31.5,12.36,9.1,U);
+box(2.6,1.8,5,whiteFix,-40.6,10.4,6.9,G.curUpper);
+box(1.4,1.3,1.4,whiteFix,-36.5,10.15,9.1,G.curUpper); box(1.6,1.4,0.6,whiteFix,-36.5,11.5,9.8,G.curUpper);
+box(6,2.8,1.9,oak,-31.5,10.9,9.1,G.curUpper); box(6.2,0.12,2.1,counterMat,-31.5,12.36,9.1,G.curUpper);
 // walk-in closet and storage over the garage
 [-4.1,4.1].forEach(z => box(9,0.1,0.1,steel,-47,GTOP+4.4,z,U));          // closet rods
+
+// =====================================================================
+// REMODEL PLAN (shown with the Remodel switch)
+// =====================================================================
+const NM = G.newMain, NU = G.newUpper;
+const darkCab = mat('#4a2e1d',{roughness:0.7});
+const granite = mat('#2b2724',{roughness:0.35});
+const fieldStone = mat('#7b7268',{roughness:0.95});
+const hoodStone = mat('#8a8074',{roughness:0.95});
+const liveEdge = mat('#7a4a28',{roughness:0.6});
+const ironMat = mat('#1e1e1e',{roughness:0.5, metalness:0.3});
+
+// --- expanded kitchen: takes the old bath, hallway and stair space, open to the living room
+// west wall: fridge and tall pantry just past the peninsula, then the sink run (sink stays near the existing plumbing)
+box(2.6,6.2,3,steel,-26.3,3.1,-1.4,NM); box(2.2,2,3,darkCab,-26.5,7.2,-1.4,NM);
+box(2.2,8,2.2,darkCab,-26.5,4,1.2,NM);
+box(2.1,3,9.1,darkCab,-26.55,1.5,6.85,NM); box(2.4,0.15,9.3,granite,-26.5,3.07,6.85,NM);
+box(1.6,0.06,2.8,steel,-26.4,3.17,6.2,NM);
+box(0.15,2.3,9.1,fieldStone,-27.5,4.3,6.85,NM);                    // stone backsplash
+box(1.2,2.6,3.4,darkCab,-27,6.7,4.0,NM); box(1.2,2.6,2.6,darkCab,-27,6.7,10.1,NM);
+// south wall: range under a stone hood
+box(10.5,3,2.1,darkCab,-20.35,1.5,10.65,NM); box(10.7,0.15,2.4,granite,-20.35,3.07,10.6,NM);
+box(3,3.05,2.2,steel,-19,1.52,10.6,NM); box(2.9,0.06,2,blackMat,-19,3.13,10.6,NM);
+box(10.5,2.3,0.15,fieldStone,-20.35,4.3,11.55,NM);
+box(3.8,3.2,2,hoodStone,-19,7.0,10.7,NM); box(2,7.5,1.3,hoodStone,-19,12.2,11.0,NM);
+box(2.4,2.6,1.2,darkCab,-23.6,6.7,11.1,NM);
+// tall pantry wall at the east end of the south run (where the panel and microwave are today), with a built-in microwave
+box(4.6,8,2.3,darkCab,-12.6,4,10.5,NM);
+box(2.1,1.3,0.2,steel,-12.6,4.4,9.3,NM);
+// center island: stools on the west side so you sit facing the windows and the inlet
+box(3.4,3,7.5,darkCab,-14.5,1.5,2.2,NM); box(4.4,0.2,8.2,liveEdge,-14.9,3.1,2.2,NM);
+[-0.4,2.2,4.8].forEach(z => { cyl(0.75,0.15,liveEdge,-17.9,2.55,z,NM,16); cyl(0.07,2.5,ironMat,-17.9,1.25,z,NM,6); });
+// rough-sawn beam marking where the loft now ends
+box(0.9,1,23.4,mat('#5a3a22',{roughness:0.9}),-22.6,8.9,0,NM);
+
+
+// --- bigger view deck off the gable end with a continuous step all the way around (about 14" off grade, so no railing needed)
+(function(){
+  const skirt = mat('#4a3020',{roughness:0.95});
+  floorBox(0.45, 16.45, -18, 20, 0, 0.3, deckTex, 6, NM);
+  box(16, 0.9, 38, skirt, 8.45, -0.75, 1, NM);
+  const st = (x0,x1,z0,z1) => floorBox(x0, x1, z0, z1, -0.6, 0.6, deckTex, 6, NM);
+  st(16.45, 17.95, -19.5, 21.5);   // east edge
+  st(-1.05, 16.45, 20, 21.5);      // south edge
+  st(-1.05, 0.45, 12.6, 20);       // south end by the house
+  st(-1.05, 16.45, -19.5, -18);    // north edge
+  st(-1.05, 0.45, -18, -12.6);     // north end by the house
+})();
+// --- shed roof over the mudroom door, tucked under the main eave
+(function(){
+  const out = 3.85, drop = 1.1, len = Math.hypot(out, drop);
+  const r = box(7, 0.3, len, roofMat, -49.1, 8.3 - drop/2 + 0.1, GZN - out/2, NM); r.rotation.x = -Math.atan2(drop, out);
+  [-51.6,-46.6].forEach(x => box(0.45, 8.4, 0.45, cedar, x, 3.0, GZN - out + 0.3, NM));
+  box(7.2, 0.5, 0.3, cedar, -49.1, 7.0, GZN - out + 0.3, NM);
+})();
+// --- garage converted to living space (floor raised to the house floor)
+box(4.4, 0.5, 3, cedar, -49.1, -0.35, GZN - 1.75, NM); box(4.4, 0.4, 1.2, cedar, -49.1, -0.95, GZN - 3.8, NM);   // landing + step at the mudroom door
+floorBox(-70, -42.4, -11.75, 13.85, 0.02, 1.2, woodFloorTex, 6, NM);
+// bath right beside the door from the house (shares a wall with the main-floor bedroom)
+partition('x', -3.5, -50, -42.4, 0, 8.8, NM, [[-48.6,-46.4]]);
+partition('z', -50, -3.5, 5, 0, 8.8, NM);
+floorBox(-50, -42.4, -3.5, 5, 0.04, 0.05, tileTex, 2, NM);
+box(3.6,0.3,3.6,fieldStone,-44.2,0.15,3.2,NM);
+box(3.6,7,0.2,fieldStone,-44.2,3.5,4.9,NM); box(0.2,7,3.6,fieldStone,-42.55,3.5,3.2,NM);
+const showerGlass = box(0.08,6.5,3.6,glassMat,-46.05,3.4,3.2,NM); showerGlass.userData.noShadow = true;
+box(1.9,2.8,3.4,darkCab,-49.05,1.4,1.4,NM); box(2.1,0.15,3.6,granite,-49,2.88,1.4,NM);
+box(1.4,1.3,1.4,whiteFix,-48.9,0.65,-2.3,NM); box(0.6,1.4,1.6,whiteFix,-49.65,2,-2.3,NM);
+// utility / boiler and laundry together in one room
+partition('x', 5, -55, -42.4, 0, 8.8, NM, [[-53.8,-51.6]]);
+partition('z', -55, 5, 13.85, 0, 8.8, NM);
+floorBox(-55, -42.4, 5, 13.85, 0.04, 0.05, tileTex, 2, NM);
+box(2.4,2.6,2.4,blackMat,-43.8,1.3,10,NM);
+cyl(1.0,5.2,mat('#8f9599',{metalness:0.4,roughness:0.4}),-46.6,2.6,12.6,NM);
+box(2.4,3,2.4,whiteFix,-53.4,1.5,12.5,NM); box(2.4,3,2.4,whiteFix,-50.6,1.5,12.5,NM);
+box(5.6,2.4,1.2,darkCab,-52,6.5,13.2,NM);
+// L-shaped stairs in the southwest corner: 4 steps west to a landing, then up toward the ridge.
+// The upper flight runs parallel to the roof framing, so the opening only spans about two rafters/trusses.
+(function(){
+  const r = (GTOP + 0.5)/13, t = 0.9;
+  for (let i=0;i<3;i++){ const h = (i+1)*r; box(t, h, 3.5, darkWood, -63.8 - i*t - t/2, h/2, 10.45, NM); }
+  box(3.5, 4*r, 3.5, darkWood, -68.25, 2*r, 10.45, NM);                       // landing
+  for (let j=0;j<8;j++){ const h = (5+j)*r; box(3.5, h, t, darkWood, -68.25, h/2, 8.7 - j*t - t/2, NM); }
+  const dz = 7.2, dy = 8*r, len = Math.hypot(dz,dy);
+  const hr = box(0.22, 0.22, len, darkWood, -66.4, 5*r + 3 + dy/2, 8.7 - dz/2, NM); hr.rotation.x = Math.atan2(dy, dz);
+  for (let z = 8.4; z > 1.8; z -= 0.55){ const top = 5*r + ((8.7 - z)/dz)*dy; box(0.12, 3.0, 0.12, ironMat, -66.4, top + 1.6, z, NM); }
+})();
+
+// closet under the upper flight of the new stairs, door by the mudroom entry
+partition('z', -66.2, 1.5, 8.7, 0, 8.8, NM, [[2,4.5,6.8]]);
+partition('x', 1.5, -70, -66.2, 0, 8.8, NM);
+
+// --- upper floor
+// 5 ft loft walkway along the west wall, with a rail over the kitchen
+rail(-22.6, -11.7, -22.6, 11.7, 9.5, NU, darkWood);
+// finished room over the garage: drywall knee walls, rail around the stair opening
+partition('x', -8, -69.5, -52, GTOP+0.5, 5.4, NU);
+partition('x', 8, -69.5, -52, GTOP+0.5, 5.4, NU);
+rail(-66.5, 1.5, -66.5, 8, GTOP+0.5, NU, darkWood);           // guard along the stair opening
+// remodeled upstairs bath: large stone/tile walk-in shower with two wall heads and a rain head
+box(6,0.3,3.9,fieldStone,-39,9.65,8.15,NU);                                   // shower floor
+box(6,6.8,0.2,fieldStone,-39,12.9,10.0,NU); box(0.2,6.8,3.9,fieldStone,-41.9,12.9,8.15,NU);
+const sg2 = box(0.08,6.4,3.9,glassMat,-36,12.7,8.15,NU); sg2.userData.noShadow = true;
+const sg3 = box(3,6.4,0.08,glassMat,-40.4,12.7,6.2,NU); sg3.userData.noShadow = true;   // walk-in opening on the east end
+box(3.2,1.5,1.3,fieldStone,-40.3,10.5,9.2,NU);                                  // stone bench
+[-40.6,-37.4].forEach(x => { const h = cyl(0.25,0.15,steel,x,15.7,9.75,NU,12); h.rotation.x = Math.PI/2; box(0.08,0.08,0.4,steel,x,15.8,9.85,NU); });
+box(0.08,1.2,0.08,steel,-39,17.0,8.15,NU); cyl(0.85,0.08,steel,-39,16.35,8.15,NU,20);   // rain head
+box(6,2.8,1.9,darkCab,-32.5,10.9,9.1,NU); box(6.2,0.15,2.1,granite,-32.5,12.38,9.1,NU);
+box(1.4,1.3,1.4,whiteFix,-29.6,10.15,4.6,NU); box(0.6,1.4,1.6,whiteFix,-28.9,11.5,4.6,NU);
 
 // =====================================================================
 // SITE (world coordinates, ft)
@@ -644,10 +790,10 @@ const conex = box(8, 8.5, 20, mat('#6b6650',{roughness:0.8}), 6, 4.25, -50, site
   d.position.set(x, 3.6, z - 0.2); d.rotation.x = -2.0; site.add(d);
 });
 const tankMat = mat('#a4483f',{roughness:0.6});
-const tank = cyl(1.5, 5, tankMat, -24, 3.2 + 0, 14.5, site, 20); tank.rotation.z = Math.PI/2;
-[[-25.8,13.6],[-25.8,15.4],[-22.2,13.6],[-22.2,15.4]].forEach(([x,z]) => box(0.15, 2.2, 0.15, tankMat, x, 1.1, z, site));
+const tank = cyl(1.5, 5, tankMat, -48, 3.2, 16.3, site, 20); tank.rotation.z = Math.PI/2;
+[[-49.8,15.4],[-49.8,17.2],[-46.2,15.4],[-46.2,17.2]].forEach(([x,z]) => box(0.15, 2.2, 0.15, tankMat, x, 1.1, z, site));
+[-53.5,-51.3].forEach(x => box(1.4, 2.0, 0.6, mat('#9aa0a3'), x, HY + 4.6, GZS + 0.35, site));   // electrical boxes
 box(4, 2.5, 3, mat('#7a5a3a'), -46.5, 1.25, 16.8, site); box(4.2, 0.3, 3.2, mat('#3f6b4a'), -46.5, 2.65, 16.8, site);
-box(1.4, 2.2, 0.6, mat('#9aa0a3'), -19, HY + 4.2, 12.8, site);      // generator transfer switch on the log wall
 
 // approximate lot lines (Lot 6, 445 x 200 ft)
 (function(){
@@ -671,7 +817,7 @@ for (let i=0;i<34;i++) mountain(rand(3000,5200), rand(-4200,3200), rand(500,1250
 
 // trees: spruce and October birch
 const spots = []; let tries = 0;
-while (spots.length < 1500 && tries < 20000){
+while (spots.length < (LOW ? 650 : 1500) && tries < 20000){
   tries++;
   const x = rand(-900, 90), z = rand(-1600, 1600);
   if (x > -105 && x < 92 && z > -90 && z < 82) continue;              // yard clearing
@@ -724,16 +870,84 @@ balusterSets.forEach(({m, pts}, group) => {
 ground.castShadow = false; water.castShadow = false; flats.castShadow = false;
 
 // =====================================================================
+// PERFORMANCE: merge static pieces that share a material into single meshes
+// (each switchable group is merged on its own, so the view and plan switches still work)
+// =====================================================================
+(function(){
+  const imgIds = new WeakMap(); let nextImg = 1;
+  const imgId = img => { if (!imgIds.has(img)) imgIds.set(img, nextImg++); return imgIds.get(img); };
+  const sharedMats = new Map();
+  const sep = new Set([G.curMain, G.newMain, G.curUpper, G.newUpper, G.curGar, G.newGar]);
+  const roots = [G.mainLogs, G.upperLogs, G.gableLogs, G.roof, G.connLower, G.connUpper, G.connGable, G.garGable, G.base,
+                 G.garWalls, G.curGar, G.newGar, G.mainInt, G.curMain, G.newMain, G.upperInt, G.curUpper, G.newUpper, site];
+  scene.updateMatrixWorld(true);
+  roots.forEach(g => {
+    const inv = new THREE.Matrix4().copy(g.matrixWorld).invert();
+    const meshes = [];
+    (function collect(o){ o.children.forEach(c => {
+      if (sep.has(c) || c.isInstancedMesh || c.isPoints || c.isLine) return;
+      if (c.isMesh) meshes.push(c);
+      collect(c);
+    }); })(g);
+    const buckets = new Map();
+    meshes.forEach(m => {
+      const mt = m.material, cast = !!m.castShadow;
+      let key, makeMat, rep = null;
+      if (mt.map){
+        key = 'map|' + imgId(mt.map.image) + '|' + mt.color.getHexString() + '|' + mt.roughness + '|' + cast;
+        rep = mt.map.repeat.clone();
+        makeMat = () => { const t = mt.map.clone(); t.repeat.set(1,1); t.needsUpdate = true; const n = mt.clone(); n.map = t; return n; };
+      } else {
+        key = 'mat|' + mt.uuid + '|' + cast;
+        makeMat = () => mt;
+      }
+      if (!buckets.has(key)) buckets.set(key, {items:[], makeMat, cast, mapped: !!mt.map});
+      buckets.get(key).items.push({m, rep});
+    });
+    const toRemove = [];
+    buckets.forEach((b, key) => {
+      if (b.items.length < 2 && !b.mapped) return;
+      const pos = [], nor = [], uv = [];
+      b.items.forEach(({m, rep}) => {
+        let geo = m.geometry.index ? m.geometry.toNonIndexed() : m.geometry.clone();
+        geo.applyMatrix4(new THREE.Matrix4().multiplyMatrices(inv, m.matrixWorld));
+        const P = geo.attributes.position, N = geo.attributes.normal, T = geo.attributes.uv;
+        for (let i=0;i<P.count;i++){
+          pos.push(P.getX(i), P.getY(i), P.getZ(i));
+          if (N) nor.push(N.getX(i), N.getY(i), N.getZ(i)); else nor.push(0,1,0);
+          if (T) uv.push(T.getX(i) * (rep ? rep.x : 1), T.getY(i) * (rep ? rep.y : 1)); else uv.push(0,0);
+        }
+        geo.dispose();
+        toRemove.push(m);
+      });
+      const mg = new THREE.BufferGeometry();
+      mg.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+      mg.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3));
+      mg.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
+      if (!sharedMats.has(key)) sharedMats.set(key, b.makeMat());
+      const mesh = new THREE.Mesh(mg, sharedMats.get(key));
+      mesh.castShadow = b.cast; mesh.receiveShadow = true;
+      g.add(mesh);
+    });
+    toRemove.forEach(m => { if (m.parent) m.parent.remove(m); });
+  });
+})();
+
+
+// =====================================================================
 // LABELS
 // =====================================================================
 const H = HY;
 const labelDefs = [
   {t:'Covered front entry', p:[-32,H+9,-13], v:'out'},
-  {t:'2-car garage', p:[-56.2,H+17,-14], v:'out'},
+  {t:'2-car garage', p:[-56.2,H+17,-14], v:'out', s:'cur'},
+  {t:'Garage converted to living space', p:[-56.2,H+17,-14], v:'out', s:'new'},
+  {t:'Mudroom door with roof', p:[-49.1,H+10,-15], v:'out', s:'new'},
+  {t:'Bigger deck, step all the way around', p:[9,H+4,4], v:'out', s:'new'},
   {t:'Log house', p:[-14,H+27,0], v:'out'},
   {t:'Two-story middle section', p:[-35,H+24,0], v:'out'},
-  {t:'Deck', p:[6.5,H+5,0], v:'out'},
-  {t:'Fuel tank', p:[-24,6.5,14.5], v:'out'},
+  {t:'Deck', p:[6.5,H+5,0], v:'out', s:'cur'},
+  {t:'Fuel tank', p:[-48,6.5,16.3], v:'out'},
   {t:'Conex', p:[6,11,-50], v:'out'},
   {t:'Well', p:[-40,3.5,-48], v:'out'},
   {t:'Septic risers', p:[22,3.5,25], v:'out'},
@@ -744,31 +958,51 @@ const labelDefs = [
   {t:'Lot line (approx.)', p:[-120,3,91], v:'out'},
   {t:'Living room', p:[-7,H+5,-6.5], v:'main'},
   {t:'Wood stove', p:[-2.1,H+5,10], v:'main'},
-  {t:'Stairs', p:[-12.5,H+9,-1], v:'main'},
-  {t:'Kitchen', p:[-21,H+6,6.5], v:'main'},
+  {t:'Stairs', p:[-12.5,H+9,-1], v:'main', s:'cur'},
+  {t:'Kitchen', p:[-21,H+6,6.5], v:'main', s:'cur'},
   {t:'Hall', p:[-21,H+5,-9.4], v:'main'},
   {t:'Front entry', p:[-33,H+5,-7.5], v:'main'},
-  {t:'Bath', p:[-24,H+5,-2.5], v:'main'},
-  {t:'Hallway', p:[-17,H+5,-2.5], v:'main'},
+  {t:'Bath', p:[-24,H+5,-2.5], v:'main', s:'cur'},
+  {t:'Hallway', p:[-17,H+5,-2.5], v:'main', s:'cur'},
   {t:'Bedroom', p:[-35,H+5,3], v:'main'},
-  {t:'Utility / boiler', p:[-44,H+4,8], v:'main'},
-  {t:'Garage', p:[-58,H+4,-2], v:'main'},
-  {t:'Deck', p:[6.5,H+3,0], v:'main'},
-  {t:'Loft', p:[-21,H+14,1], v:'upper'},
-  {t:'Open to below', p:[-7,H+12,0], v:'upper'},
-  {t:'Laundry', p:[-24,H+14,-8.6], v:'upper'},
+  {t:'Utility / boiler', p:[-44,H+4,8], v:'main', s:'cur'},
+  {t:'Garage', p:[-58,H+4,-2], v:'main', s:'cur'},
+  {t:'Deck', p:[6.5,H+3,0], v:'main', s:'cur'},
+  {t:'Bigger deck', p:[9,H+3,2], v:'main', s:'new'},
+  {t:'Loft', p:[-21,H+14,1], v:'upper', s:'cur'},
+  {t:'Open to below', p:[-7,H+12,0], v:'upper', s:'cur'},
+  {t:'Laundry', p:[-24,H+14,-8.6], v:'upper', s:'cur'},
   {t:'Bedroom', p:[-35,H+14,-3.5], v:'upper'},
-  {t:'Bath', p:[-35,H+14,6.5], v:'upper'},
+  {t:'Bath', p:[-35,H+14,6.5], v:'upper', s:'cur'},
   {t:'Walk-in closet', p:[-47,H+13,0], v:'upper'},
-  {t:'Storage (unfinished)', p:[-61,H+12,0], v:'upper'}
+  {t:'Storage (unfinished)', p:[-61,H+12,0], v:'upper', s:'cur'}
 ];
+labelDefs.push(
+  {t:'Expanded kitchen', p:[-20,H+6,4], v:'main', s:'new'},
+  {t:'Center island (seats face the view)', p:[-14.5,H+5,2.2], v:'main', s:'new'},
+  {t:'Flex space', p:[-62,H+5,-6], v:'main', s:'new'},
+  {t:'Mudroom door', p:[-49.1,H+8,-13], v:'main', s:'new'},
+  {t:'Bedroom door to bath', p:[-42,H+8,-1.7], v:'main', s:'new'},
+  {t:'Pantry + microwave', p:[-12.6,H+9,10.5], v:'main', s:'new'},
+  {t:'L-shaped stairs up', p:[-67,H+8,9], v:'main', s:'new'},
+  {t:'Under-stair closet', p:[-68,H+4,4], v:'main', s:'new'},
+  {t:'New bath, stone walk-in shower', p:[-46.5,H+6,0.5], v:'main', s:'new'},
+  {t:'Utility + laundry', p:[-49,H+6,9.5], v:'main', s:'new'},
+  {t:'Loft walkway (5 ft)', p:[-25,H+14,2], v:'upper', s:'new'},
+  {t:'Open to kitchen below', p:[-17,H+13,0], v:'upper', s:'new'},
+  {t:'Open to below', p:[-7,H+12,0], v:'upper', s:'new'},
+  {t:'Walk-in shower: 2 heads + rain head', p:[-39,H+14,8], v:'upper', s:'new'},
+  {t:'Bonus room over garage', p:[-61,H+13,-4], v:'upper', s:'new'},
+  {t:'Outside door (west side)', p:[-70.5,H+15,1], v:'upper'},
+  {t:'Stairs from below', p:[-68,H+13,5], v:'upper', s:'new'}
+);
 const labelsEl = document.getElementById('labels');
 labelDefs.forEach(d => { d.el = document.createElement('div'); d.el.className = 'lbl'; d.el.textContent = d.t; d.el.style.display = 'none'; labelsEl.appendChild(d.el); d.vec = new THREE.Vector3(...d.p); });
 const tmpV = new THREE.Vector3();
 function updateLabels(){
   const w = window.innerWidth, h = window.innerHeight, group = (state.view === 'front' || state.view === 'inlet') ? 'out' : state.view;
   labelDefs.forEach(d => {
-    if (d.v !== group){ d.el.style.display = 'none'; return; }
+    if (d.v !== group || (d.s && d.s !== state.plan)){ d.el.style.display = 'none'; return; }
     tmpV.copy(d.vec).project(camera);
     if (tmpV.z > 1 || tmpV.z < -1 || Math.abs(tmpV.x) > 1.02 || Math.abs(tmpV.y) > 1.02){ d.el.style.display = 'none'; return; }
     d.el.style.display = 'block';
@@ -779,7 +1013,7 @@ function updateLabels(){
 // =====================================================================
 // VIEWS
 // =====================================================================
-const state = {view:'front', evening:false};
+const state = {view:'front', evening:false, plan:'cur'};
 const VIEWS = {
   front:{cam:[-26,42,-118], tgt:[-42,8,-2]},
   inlet:{cam:[78,32,-22], tgt:[-24,10,4]},
@@ -802,8 +1036,17 @@ function setView(v){
   G.upperLogs.visible = G.connUpper.visible = G.upperInt.visible = v !== 'main';
   document.querySelectorAll('[data-view]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.view === v)));
   flyTo(VIEWS[v]);
+  invalidate();
 }
 document.querySelectorAll('[data-view]').forEach(b => b.addEventListener('click', () => setView(b.dataset.view)));
+function setPlan(pl){
+  state.plan = pl;
+  ['curMain','curUpper','curGar'].forEach(k => G[k].visible = pl === 'cur');
+  ['newMain','newUpper','newGar'].forEach(k => G[k].visible = pl === 'new');
+  document.querySelectorAll('[data-plan]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.plan === pl)));
+  if (typeof invalidate === 'function') invalidate();
+}
+document.querySelectorAll('[data-plan]').forEach(b => b.addEventListener('click', () => setPlan(b.dataset.plan)));
 document.getElementById('resetBtn').addEventListener('click', () => flyTo(VIEWS[state.view]));
 
 function setEvening(on){
@@ -820,29 +1063,35 @@ function setEvening(on){
   glassMat.opacity = on ? 0.85 : 0.35;
   stars.visible = on;
   document.getElementById('timeBtn').textContent = on ? 'Daylight' : 'Evening';
+  invalidate();
 }
 document.getElementById('timeBtn').addEventListener('click', () => setEvening(!state.evening));
 
 const ease = t => t < 0.5 ? 4*t*t*t : 1 - Math.pow(-2*t+2, 3)/2;
+let needsRender = true;
+const invalidate = () => { needsRender = true; };
+controls.addEventListener('change', invalidate);
 function frame(now){
   if (tween){
     const t = Math.min(1, (now - tween.t0)/tween.dur), k = ease(t);
     camera.position.lerpVectors(tween.fc, tween.tc, k);
     controls.target.lerpVectors(tween.ft, tween.tt, k);
     if (t >= 1) tween = null;
+    needsRender = true;
   }
-  controls.update();
-  renderer.render(scene, camera);
-  updateLabels();
+  if (controls.update()) needsRender = true;
+  if (needsRender){ renderer.render(scene, camera); updateLabels(); needsRender = false; }
   requestAnimationFrame(frame);
 }
 window.addEventListener('resize', () => {
   camera.aspect = window.innerWidth / window.innerHeight; camera.updateProjectionMatrix();
   renderer.setSize(window.innerWidth, window.innerHeight);
+  invalidate();
 });
 const s0 = VIEWS.front;
 camera.position.set(s0.cam[0]*1.5, s0.cam[1]*1.5, s0.cam[2]*1.5);
 controls.target.set(...s0.tgt);
+setPlan('cur');
 setView('front');
 requestAnimationFrame(frame);
 })();
